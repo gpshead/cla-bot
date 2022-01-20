@@ -28,23 +28,9 @@ export interface ClaCheckState extends ClaCheckInput {
 export class ContributorLicenseAgreement {
   id: string | null;
   email: string;
-  username: string;
+  username: string | null;
   versionId: string;
   signedAt: Date;
-
-  constructor(
-    id: string | null,
-    email: string,
-    username: string,
-    versionId: string,
-    signedAt: Date
-  ) {
-    this.id = id;
-    this.email = email;
-    this.versionId = versionId;
-    this.signedAt = signedAt;
-    this.username = username;
-  }
 }
 
 export interface ClasImportEntry {
