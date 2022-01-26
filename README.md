@@ -2,6 +2,61 @@
 
 A GitHub bot and Web UI for managing contributor license agreements.
 
+## Installation
+
+This instance is forked from the original and ran by the
+Python Software Foundation for
+[python/cpython](https://github.com/python/cpython/).
+
+It's deployed on Heroku via https://git.heroku.com/cpython-clabot.git
+with configuration stored in [heroku.yml](./heroku.yml).
+
+The default Dockerfile here includes the frontend CLA bot Web app and
+is the same as the upstream CLA bot.  Since it's AWS-specific, we use
+a separate file: Dockerfile.cpython.  This one includes both EdgeDB
+Server *and* the CLA bot Web app. This is because Heroku doesn't support
+network linking of Docker images, and the only network protocol exposed
+for EdgeDB would be HTTPS which is insufficient for our needs.
+
+Since EdgeDB here is backed by a Postgres instance, there can be
+multiple frontend EdgeDB server processes without an issue.
+
+Note that Dockerfile.cpython only includes files from the upstream
+CLA bot Web frontend image hosted on `hub.docker.com` instead of
+building the files inline.  This is because the upstream build uses
+`COPY . .` which invalidates on any non-ignored file change in this
+repository. And the Yarn Next.js build takes over 5 minutes.
+
+## Maintenance
+
+When upgrading CLA bot frontend code, rebuild ``ambv/cla-bot-frontend``
+by running:
+
+```
+docker build -t ambv/cla-bot-frontend .
+```
+
+You can also rebuild ``ambc/cla-bot-cpython`` manually by running:
+
+```
+docker build -t ambv/cla-bot-cpython . -f Dockerfile.cpython
+```
+
+You can run a local container and use it in a regular fashion granted
+that there's an `.env` file with `DATABASE_URL` in it from Heroku
+Postgres.  You can read it by running `heroku config`.  Once the file
+is there, start the container with:
+
+```
+docker run -it --rm --name cla-bot --env-file .env -p 5656:5656 ambv/cla-bot-cpython
+```
+
+---
+
+What follows is the original README.
+
+---
+
 ## Development
 
 **Requirements:**

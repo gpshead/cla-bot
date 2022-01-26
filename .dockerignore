@@ -1,16 +1,17 @@
+/.env
 /.git
 /.github
-**/node_modules
-
-/docs
-/migrations
 /.next
 /.vscode
+**/node_modules
+
+/dbschema/migrations
+/docs
 /yarn-error.log
 
 # PlantUML output folder
 /out
 
 Dockerfile
+Dockerfile.cpython
 README.md
-.env
