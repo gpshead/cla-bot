@@ -19,15 +19,15 @@ if TYPE_CHECKING:
     SimpleCoroutineFunction = Callable[[], Coroutine[None, None, None]]
 
 
-async def gracefully_close(proc: asyncio.subprocess.Process, cmdline: str) -> None:
+async def gracefully_close(proc: asyncio.subprocess.Process, cmdline: str) -> int:
     prefix = make_prefix(cmdline)
     prefix_e = make_prefix(cmdline, err=True)
     if proc.returncode is not None:
         print(
-            f"{prefix}PID {proc.pid} already exited with status code {proc.returncode}",
+            f"{prefix}PID {proc.pid} exited with status code {proc.returncode}",
             flush=True,
         )
-        return
+        return proc.returncode
 
     print(f"{prefix}Asking PID {proc.pid} to terminate...", flush=True)
     proc.terminate()
@@ -35,7 +35,7 @@ async def gracefully_close(proc: asyncio.subprocess.Process, cmdline: str) -> No
         await asyncio.wait_for(proc.wait(), timeout=10.0)
         if proc.returncode is not None:
             print(f"{prefix}PID {proc.pid} successfully terminated", flush=True)
-        return
+            return proc.returncode
     except BaseException:
         pass
 
@@ -45,9 +45,11 @@ async def gracefully_close(proc: asyncio.subprocess.Process, cmdline: str) -> No
         await asyncio.wait_for(proc.wait(), timeout=2.0)
         if proc.returncode is not None:
             print(f"{prefix_e}PID {proc.pid} successfully killed", flush=True)
-        return
+            return proc.returncode
     except BaseException:
         pass
+
+    return -1024
 
 
 def make_prefix(
@@ -67,6 +69,8 @@ def make_prefix(
 def censor(s: str) -> str:
     if s.startswith("--backend-dsn="):
         return "--backend-dsn=********"
+    if s.startswith("--dsn="):
+        return "--dsn=********"
     return s
 
 
@@ -112,6 +116,8 @@ class Minivisor:
         grace_period: float = 10.0,
         sleep_period: float = 60.0,
     ) -> None:
+        """Spawn a new process with `exec` and wait for initial healthcheck to pass."""
+
         exe = shutil.which(args[0])
         if not exe:
             raise RuntimeError(f"Missing {args[0]} executable")
@@ -127,7 +133,7 @@ class Minivisor:
             stderr=asyncio.subprocess.PIPE,
         )
         await self.out.put(
-            f"{prefix_str}Spawned '{cmdline}' process at PID {proc.pid}".encode("utf8")
+            f"{prefix_str}PID {proc.pid} spawned daemon '{cmdline}'".encode("utf8")
         )
         initial_pass = asyncio.Future()
         waiter_task = asyncio.create_task(
@@ -158,6 +164,59 @@ class Minivisor:
                 prefix_str.encode("utf8") + b"Initial health check passed."
             )
 
+    async def once(
+        self,
+        *args: str,
+        input: bytes | None = None,
+        require_clean_return_code: bool = True,
+    ) -> int:
+        """Spawn a short-lived process."""
+
+        exe = shutil.which(args[0])
+        if not exe:
+            raise RuntimeError(f"Missing {args[0]} executable")
+
+        cmdline = " ".join(censor(a) for a in args)
+        prefix_str = make_prefix(cmdline)
+        prefix_out = make_prefix(cmdline, out=True).encode()
+        prefix_err = make_prefix(cmdline, err=True).encode()
+        proc = await asyncio.create_subprocess_exec(
+            exe,
+            *args[1:],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.PIPE,
+        )
+        await self.out.put(
+            f"{prefix_str}PID {proc.pid} running command '{cmdline}'".encode("utf8")
+        )
+        stdout_task = asyncio.create_task(self.follow(prefix_out, proc.stdout))
+        stderr_task = asyncio.create_task(self.follow(prefix_err, proc.stderr))
+        try:
+            try:
+                if input is not None:
+                    proc.stdin.write(input)
+                    try:
+                        await proc.stdin.drain()
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
+                proc.stdin.close()
+
+                await proc.wait()
+            finally:
+                return_code = await gracefully_close(proc, cmdline)
+                stdout_task.cancel()
+                stderr_task.cancel()
+                await asyncio.wait([stdout_task, stderr_task], timeout=2.0)
+        finally:
+            if not require_clean_return_code or return_code == 0:
+                return return_code  # continue, even if the world is burning
+
+            await self.out.put(
+                prefix_err + b"Return code isn't zero: " + f"{return_code}".encode()
+            )
+            await self.shutdown()
+            raise RuntimeError("Cannot continue without this command succeeding")
 
     async def wait_until_any_terminates(self) -> None:
         if self._is_shutting_down:
@@ -244,6 +303,7 @@ class Minivisor:
             failed = True
             for line in str(exc).splitlines():
                 if line.strip():
+                    line = "Health: " + line
                     await self.out.put((prefix + line).encode())
         return failed or proc.returncode is not None
 
