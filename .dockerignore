@@ -5,7 +5,6 @@
 /.vscode
 **/node_modules
 
-/dbschema/migrations
 /docs
 /yarn-error.log
 
