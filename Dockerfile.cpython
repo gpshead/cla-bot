@@ -37,4 +37,5 @@ ENV DATABASE_URL postgres://...
 COPY ./scripts/docker-entrypoint-clabot.py /home/docker-entrypoint.py
 COPY ./scripts/mv.py /home/mv.py
 COPY ./scripts/edb_healthcheck.py /home/edb_healthcheck.py
+COPY ./scripts/deployment.py /home/deployment.py
 ENTRYPOINT ["/usr/bin/python3", "-u", "/home/docker-entrypoint.py"]

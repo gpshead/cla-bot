@@ -5,10 +5,7 @@ setup:
 build:
   docker:
     web: Dockerfile.cpython
-#   config:
-#     RAILS_ENV: development
-#     FOO: bar
-# release:
-#   command:
-#     - ./deployment-tasks.sh
-#   image: web
+release:
+  command:
+    - deployment
+  image: web
