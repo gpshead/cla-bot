@@ -63,6 +63,8 @@ $ heroku git:remote -a cpython-clabot
 $ git push heroku cpython-clabot:main
 ```
 
+This will output build information during the push.
+
 ---
 
 What follows is the original README.
