@@ -59,7 +59,7 @@ async def main() -> None:
         if sys.argv[1] == "deployment":
             await mv.out.put(b"Running deployment tasks for a new release...")
             new_release = True
-        else:
+        elif sys.argv[1] != "default":
             await mv.out.put(b"Invalid entrypoint sub-command: " + sys.argv[1].encode())
             await mv.shutdown()
             return

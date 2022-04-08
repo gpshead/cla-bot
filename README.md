@@ -34,8 +34,12 @@ by running:
 
 ```
 docker build -t ambv/cla-bot-frontend .
+docker push ambv/cla-bot-frontend
 ```
 
+This is a helper image that is merged with the EdgeDB server later
+using `Dockerfile.cpython`. That main image is built by Heroku itself
+when you push to the Heroku git from this repo.
 You can also rebuild ``ambc/cla-bot-cpython`` manually by running:
 
 ```
@@ -48,7 +52,15 @@ Postgres.  You can read it by running `heroku config`.  Once the file
 is there, start the container with:
 
 ```
-docker run -it --rm --name cla-bot --env-file .env -p 5656:5656 ambv/cla-bot-cpython
+docker run -it --rm --name cla-bot --env-file .env -p 3000:3000 -p 5656:5656 ambv/cla-bot-cpython
+```
+
+## Running a deploy on Heroku
+
+```
+$ git clone $THIS_REPO
+$ heroku git:remote -a cpython-clabot
+$ git push heroku cpython-clabot:main
 ```
 
 ---

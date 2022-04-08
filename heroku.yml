@@ -9,3 +9,5 @@ release:
   command:
     - deployment
   image: web
+run:
+  web: default
