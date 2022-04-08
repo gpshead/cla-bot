@@ -1,7 +1,7 @@
 FROM ambv/cla-bot-frontend:latest AS frontend
 FROM edgedb/edgedb-cli:linux-x86_64-latest AS edgedbcli
 FROM node:14.16-buster-slim AS final
-ARG version=1-rc4
+ARG version=1.2
 WORKDIR /app
 COPY --from=frontend /app .
 COPY --from=edgedbcli /usr/bin/edgedb /usr/bin/edgedb
