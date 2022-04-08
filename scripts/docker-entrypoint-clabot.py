@@ -95,6 +95,7 @@ async def main() -> None:
         "--bind-address=0.0.0.0",
         "--emit-server-status=fd://1",
         "--tls-cert-mode=generate_self_signed",
+        "--compiler-pool-mode=on_demand",
         f"--backend-dsn={DATABASE_URL}",
         with_healthcheck=healthcheck,
         grace_period=20.0,
