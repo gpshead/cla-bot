@@ -36,6 +36,7 @@ def untangle_github_rsa_private_key() -> None:
         source = GITHUB_RSA_PRIVATE_KEY_SOURCE
         if source[0] == '"':
             import ast
+
             parsed = ast.parse(source, mode="eval").body
             if isinstance(parsed, ast.Constant):
                 # Python 3.9+
@@ -54,18 +55,38 @@ async def main() -> None:
     EDGEDB_PASSWORD = urlparse(DATABASE_URL).password
     mv = Minivisor()
 
+    # Figure out if what the user wants is the new deployment setup.
+    # This is more complex than it's got to be because Heroku tries to inject some
+    # log-streaming BS through shell.
     new_release = False
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "deployment":
-            await mv.out.put(b"Running deployment tasks for a new release...")
+    argv = sys.argv[1:]
+    if argv[0:2] == ["/bin/sh", "-c"]:
+        argv = argv[2:]
+
+    if len(argv) > 1:
+        await mv.out.put(b"Invalid entrypoint sub-command: " + repr(argv).encode())
+        await mv.shutdown()
+        return
+
+    if len(argv) == 1:
+        cmd = argv[0]
+        if cmd == "deployment":
             new_release = True
-        elif sys.argv[1] != "default":
-            await mv.out.put(b"Invalid entrypoint sub-command: " + sys.argv[1].encode())
+        elif "/bin/sh -c deployment" in cmd:
+            new_release = True
+        elif cmd == "default":
+            new_release = False
+        elif "/bin/sh -c default" in cmd:
+            new_release = False
+        else:
+            await mv.out.put(b"Invalid entrypoint sub-command: " + repr(cmd).encode())
             await mv.shutdown()
             return
 
     if new_release:
         import deployment
+
+        await mv.out.put(b"Running deployment tasks for a new release...")
         await deployment.main(mv)
         return
 
