@@ -303,8 +303,8 @@ class Minivisor:
             failed = True
             for line in str(exc).splitlines():
                 if line.strip():
-                    line = "Health: " + line
-                    await self.out.put((prefix + line).encode())
+                    line = "Health: " + prefix + line
+                    await self.out.put(line.encode())
         return failed or proc.returncode is not None
 
     async def check_health(
